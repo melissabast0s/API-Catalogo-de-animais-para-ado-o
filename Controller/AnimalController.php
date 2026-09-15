@@ -11,10 +11,9 @@ class AnimalController {
     }
 
     public function ProcessRequest($method, $id) {
-        // Converte o método HTTP para minúsculo (ex: 'GET' vira 'get')
+       
         $action = strtolower($method);
 
-        // Verifica se o método correspondente existe na classe
         if (method_exists($this, $action)) {
             $this->$action($id);
         } else {
