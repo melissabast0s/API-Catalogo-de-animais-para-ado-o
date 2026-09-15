@@ -11,23 +11,14 @@ class AnimalController {
     }
 
     public function ProcessRequest($method, $id) {
-        switch ($method) {
-            case 'GET':
-                $this->get($id);
-                break;
-            case 'POST':
-                $this->post();
-                break;
-            case 'PUT':
-                $this->put($id);
-                break;
-            case 'DELETE':
-                $this->delete($id);
-                break;
-            default:
-                http_response_code(405);
-                echo json_encode(["status" => false, "message" => "Método não permitido."]);
-                break;
+     
+        $action = strtolower($method);
+
+        if (method_exists($this, $action)) {
+            $this->$action($id);
+        } else {
+            http_response_code(405);
+            echo json_encode(["status" => false, "message" => "Método não permitido."]);
         }
     }
 
@@ -46,7 +37,7 @@ class AnimalController {
         }
     }
 
-    private function post() {
+    private function post($id = null) {
         $data = json_decode(file_get_contents("php://input"), true);
 
         if (empty($data['nome']) || empty($data['especie']) || empty($data['raca']) || !isset($data['idade'])) {
@@ -62,7 +53,7 @@ class AnimalController {
         }
     }
 
-    private function put($id) {
+    private function put($id = null) {
         if (!$id) {
             $this->response(false, "ID do animal não fornecido.", null, 400);
             return;
@@ -87,7 +78,7 @@ class AnimalController {
         }
     }
 
-    private function delete($id) {
+    private function delete($id = null) {
         if (!$id) {
             $this->response(false, "ID do animal não fornecido.", null, 400);
             return;

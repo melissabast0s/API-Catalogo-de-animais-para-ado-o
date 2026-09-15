@@ -6,11 +6,10 @@ use Model\AnimalModel;
 use Controller\AnimalController;
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$parts = explode("/", trim($path, "/"));
 
-$parts = explode("/", $path);
-
-$resource = $parts[1] ?? null; 
-$id = $parts[2] ?? null;
+$resource = !empty($parts[0]) ? $parts[0] : "animais";
+$id = $parts[1] ?? null;
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -26,7 +25,6 @@ try {
 
     $animalController->ProcessRequest($_SERVER['REQUEST_METHOD'], $id);
 } catch (\Throwable $error) {
-    error_log($error->getMessage());
     http_response_code(500);
-    echo json_encode(["error" => "Erro interno."]);
+    echo json_encode(["error" => $error->getMessage()]);
 }
