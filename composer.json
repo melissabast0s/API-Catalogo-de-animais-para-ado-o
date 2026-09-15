@@ -1,0 +1,12 @@
+{
+    "require": {
+        "vlucas/phpdotenv": "^5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Model\\": "Model/",
+            "Controller\\": "Controller/",
+            "Config\\": "Config/"
+        }
+    }
+}git
