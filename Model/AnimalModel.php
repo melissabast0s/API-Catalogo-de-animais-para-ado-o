@@ -1,6 +1,8 @@
 <?php
+namespace Model;
 
-require_once __DIR__ . '/Connection.php';
+use Config\Connection;
+use PDO;
 
 class AnimalModel {
     private $conn;
