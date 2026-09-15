@@ -6,6 +6,13 @@ use Model\AnimalModel;
 use Controller\AnimalController;
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+
+$file = __DIR__ . $path;
+if (is_file($file) && file_exists($file)) {
+    return false;
+}
+
 $parts = explode("/", trim($path, "/"));
 
 $resource = !empty($parts[0]) ? $parts[0] : "animais";

@@ -1,74 +1,79 @@
 <?php
+
 namespace Model;
 
-use Config\Connection;
 use PDO;
 
-class AnimalModel {
-    private $conn;
+class AnimalModel
+{
+    private PDO $conn;
+    private string $table = "animais";
 
-    public function __construct() {
-        $this->conn = Connection::getConnection();
+    public function __construct(PDO $conn)
+    {
+        $this->conn = $conn;
     }
 
-    public function getAll($status = null) {
-        if ($status) {
-            $stmt = $this->conn->prepare("SELECT * FROM animais WHERE status = :status ORDER BY id DESC");
-            $stmt->bindValue(':status', $status);
-            $stmt->execute();
-            return $stmt->fetchAll();
-        }
-
-        $stmt = $this->conn->query("SELECT * FROM animais ORDER BY id DESC");
-        return $stmt->fetchAll();
-    }
-
-    public function getById($id) {
-        $stmt = $this->conn->prepare("SELECT * FROM animais WHERE id = :id");
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+    // 1. Resolve os avisos de readAll e readById
+    public function readAll(): array
+    {
+        $query = "SELECT * FROM " . $this->table;
+        $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        return $stmt->fetch();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function create($data) {
-        $sql = "INSERT INTO animais (nome, especie, raca, idade, status, foto) 
-                VALUES (:nome, :especie, :raca, :idade, :status, :foto)";
+    public function readById(string $id): ?array
+    {
+        $query = "SELECT * FROM " . $this->table . " WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ?: null;
+    }
+
+    // 2. Resolve o aviso: "Too many arguments to function create(). 6 provided"
+    public function create(string $nome, string $especie, string $raca, float $idade, string $status, ?string $foto): bool
+    {
+        $query = "INSERT INTO " . $this->table . " (nome, especie, raca, idade, status, foto) 
+                  VALUES (:nome, :especie, :raca, :idade, :status, :foto)";
         
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':nome', $data['nome']);
-        $stmt->bindValue(':especie', $data['especie']);
-        $stmt->bindValue(':raca', $data['raca']);
-        $stmt->bindValue(':idade', $data['idade']);
-        $stmt->bindValue(':status', $data['status'] ?? 'Disponível');
-        $stmt->bindValue(':foto', $data['foto'] ?? null);
-
-        if ($stmt->execute()) {
-            return $this->conn->lastInsertId();
-        }
-        return false;
-    }
-
-    public function update($id, $data) {
-        $sql = "UPDATE animais 
-                SET nome = :nome, especie = :especie, raca = :raca, idade = :idade, status = :status, foto = :foto 
-                WHERE id = :id";
-
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        $stmt->bindValue(':nome', $data['nome']);
-        $stmt->bindValue(':especie', $data['especie']);
-        $stmt->bindValue(':raca', $data['raca']);
-        $stmt->bindValue(':idade', $data['idade']);
-        $stmt->bindValue(':status', $data['status']);
-        $stmt->bindValue(':foto', $data['foto'] ?? null);
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':nome', $nome);
+        $stmt->bindValue(':especie', $especie);
+        $stmt->bindValue(':raca', $raca);
+        $stmt->bindValue(':idade', $idade);
+        $stmt->bindValue(':status', $status);
+        $stmt->bindValue(':foto', $foto);
 
         return $stmt->execute();
     }
 
-    public function delete($id) {
-        $stmt = $this->conn->prepare("DELETE FROM animais WHERE id = :id");
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->rowCount() > 0;
+    // 3. Resolve o aviso: "Too many arguments to function update(). 7 provided"
+    public function update(string $id, string $nome, string $especie, string $raca, float $idade, string $status, ?string $foto): bool
+    {
+        $query = "UPDATE " . $this->table . " 
+                  SET nome = :nome, especie = :especie, raca = :raca, idade = :idade, status = :status, foto = :foto 
+                  WHERE id = :id";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':id', $id);
+        $stmt->bindValue(':nome', $nome);
+        $stmt->bindValue(':especie', $especie);
+        $stmt->bindValue(':raca', $raca);
+        $stmt->bindValue(':idade', $idade);
+        $stmt->bindValue(':status', $status);
+        $stmt->bindValue(':foto', $foto);
+
+        return $stmt->execute();
+    }
+
+    public function delete(string $id): bool
+    {
+        $query = "DELETE FROM " . $this->table . " WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':id', $id);
+        return $stmt->execute();
     }
 }

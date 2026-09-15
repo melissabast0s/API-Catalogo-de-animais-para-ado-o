@@ -1,103 +1,174 @@
 <?php
+
 namespace Controller;
 
 use Model\AnimalModel;
 
-class AnimalController {
-    private $animalModel;
+class AnimalController
+{
+    private AnimalModel $model;
 
-    public function __construct(AnimalModel $animalModel) {
-        $this->animalModel = $animalModel;
+    public function __construct(AnimalModel $model)
+    {
+        $this->model = $model;
     }
 
-    public function ProcessRequest($method, $id) {
-     
-        $action = strtolower($method);
+    public function ProcessRequest(string $method, ?string $id = null): void
+    {
+        $routes = [
+            'GET'    => $id ? 'getById' : 'getAll',
+            'POST'   => 'create',
+            'PUT'    => 'update',
+            'DELETE' => 'delete'
+        ];
 
-        if (method_exists($this, $action)) {
-            $this->$action($id);
-        } else {
+        $action = $routes[$method] ?? null;
+
+        if (!$action || !method_exists($this, $action)) {
             http_response_code(405);
             echo json_encode(["status" => false, "message" => "Método não permitido."]);
-        }
-    }
-
-    private function get($id = null) {
-        if ($id) {
-            $animal = $this->animalModel->getById($id);
-            if ($animal) {
-                $this->response(true, "Animal encontrado.", $animal, 200);
-            } else {
-                $this->response(false, "Animal não encontrado.", null, 404);
-            }
-        } else {
-            $status = $_GET['status'] ?? null;
-            $animais = $this->animalModel->getAll($status);
-            $this->response(true, "Lista de animais recuperada com sucesso.", $animais, 200);
-        }
-    }
-
-    private function post($id = null) {
-        $data = json_decode(file_get_contents("php://input"), true);
-
-        if (empty($data['nome']) || empty($data['especie']) || empty($data['raca']) || !isset($data['idade'])) {
-            $this->response(false, "Campos obrigatórios ausentes: nome, especie, raca, idade.", null, 400);
             return;
         }
 
-        $id = $this->animalModel->create($data);
-        if ($id) {
-            $this->response(true, "Animal cadastrado com sucesso!", ["id" => $id], 201);
-        } else {
-            $this->response(false, "Erro ao cadastrar o animal.", null, 500);
-        }
+        $this->$action($id);
     }
 
-    private function put($id = null) {
-        if (!$id) {
-            $this->response(false, "ID do animal não fornecido.", null, 400);
-            return;
-        }
+    private function getAll(?string $id): void
+    {
+        $data = $this->model->readAll();
 
-        if (!$this->animalModel->getById($id)) {
-            $this->response(false, "Animal não encontrado.", null, 404);
-            return;
-        }
 
-        $data = json_decode(file_get_contents("php://input"), true);
+        $data = array_map(function ($item) {
+            $item['foto'] = $this->formatPhotoUrl($item['foto']);
+            return $item;
+        }, $data);
 
-        if (empty($data['nome']) || empty($data['especie']) || empty($data['raca']) || !isset($data['idade']) || empty($data['status'])) {
-            $this->response(false, "Dados insuficientes para atualização.", null, 400);
-            return;
-        }
-
-        if ($this->animalModel->update($id, $data)) {
-            $this->response(true, "Dados do animal atualizados com sucesso.", null, 200);
-        } else {
-            $this->response(false, "Erro ao atualizar dados.", null, 500);
-        }
-    }
-
-    private function delete($id = null) {
-        if (!$id) {
-            $this->response(false, "ID do animal não fornecido.", null, 400);
-            return;
-        }
-
-        if ($this->animalModel->delete($id)) {
-            $this->response(true, "Animal removido do sistema com sucesso.", null, 200);
-        } else {
-            $this->response(false, "Animal não encontrado para remoção.", null, 404);
-        }
-    }
-
-    private function response($status, $message, $data = null, $code = 200) {
-        http_response_code($code);
+        http_response_code(200);
         echo json_encode([
-            "status" => $status,
-            "message" => $message,
-            "data" => $data
-        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        exit;
+            "status"  => true,
+            "message" => "Lista de animais recuperada com sucesso.",
+            "data"    => $data
+        ]);
+    }
+
+    private function getById(?string $id): void
+    {
+        $data = $this->model->readById($id);
+
+        if (!$data) {
+            http_response_code(404);
+            echo json_encode(["status" => false, "message" => "Animal não encontrado.", "data" => null]);
+            return;
+        }
+
+        $data['foto'] = $this->formatPhotoUrl($data['foto']);
+
+        http_response_code(200);
+        echo json_encode(["status" => true, "data" => $data]);
+    }
+
+    private function create(?string $id): void
+    {
+        $nome    = $_POST['nome'] ?? null;
+        $especie = $_POST['especie'] ?? null;
+        $raca    = $_POST['raca'] ?? null;
+        $idade   = $_POST['idade'] ?? null;
+        $status  = $_POST['status'] ?? 'Disponível';
+        $foto    = $this->handleFileUpload();
+
+        if (!$nome || !$especie || !$raca || !$idade) {
+            http_response_code(400);
+            echo json_encode(["status" => false, "message" => "Preencha os campos obrigatórios."]);
+            return;
+        }
+
+        $success = $this->model->create($nome, $especie, $raca, $idade, $status, $foto);
+
+        if ($success) {
+            http_response_code(201);
+            echo json_encode(["status" => true, "message" => "Animal cadastrado com sucesso."]);
+        } else {
+            http_response_code(500);
+            echo json_encode(["status" => false, "message" => "Erro ao cadastrar animal."]);
+        }
+    }
+
+    private function update(?string $id): void
+    {
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(["status" => false, "message" => "ID é obrigatório para atualização."]);
+            return;
+        }
+
+        $input = json_decode(file_get_contents("php://input"), true) ?? $_POST;
+
+        $nome    = $input['nome'] ?? null;
+        $especie = $input['especie'] ?? null;
+        $raca    = $input['raca'] ?? null;
+        $idade   = $input['idade'] ?? null;
+        $status  = $input['status'] ?? 'Disponível';
+        $foto    = $this->handleFileUpload() ?? ($input['foto'] ?? null);
+
+        $success = $this->model->update($id, $nome, $especie, $raca, $idade, $status, $foto);
+
+        if ($success) {
+            http_response_code(200);
+            echo json_encode(["status" => true, "message" => "Animal atualizado com sucesso."]);
+        } else {
+            http_response_code(400);
+            echo json_encode(["status" => false, "message" => "Falha na atualização."]);
+        }
+    }
+
+    private function delete(?string $id): void
+    {
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode(["status" => false, "message" => "ID não informado."]);
+            return;
+        }
+
+        $success = $this->model->delete($id);
+
+        if ($success) {
+            http_response_code(200);
+            echo json_encode(["status" => true, "message" => "Animal removido com sucesso."]);
+        } else {
+            http_response_code(404);
+            echo json_encode(["status" => false, "message" => "Animal não encontrado para remoção.", "data" => null]);
+        }
+    }
+
+    private function handleFileUpload(): ?string
+    {
+        if (!isset($_FILES['foto']) || $_FILES['foto']['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $extensao = strtolower(pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION));
+        $extensoesValidas = ['jpg', 'jpeg', 'png', 'webp'];
+
+        if (!in_array($extensao, $extensoesValidas)) {
+            return null;
+        }
+
+        $uploadDir = __DIR__ . '/../uploads/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $novoNome = uniqid("pet_") . "." . $extensao;
+        $destino = $uploadDir . $novoNome;
+
+        return move_uploaded_file($_FILES['foto']['tmp_name'], $destino) ? $novoNome : null;
+    }
+
+    private function formatPhotoUrl(?string $fotoName): ?string
+    {
+        if (!$fotoName) {
+            return null;
+        }
+        return "http://localhost:8000/uploads/" . $fotoName;
     }
 }
