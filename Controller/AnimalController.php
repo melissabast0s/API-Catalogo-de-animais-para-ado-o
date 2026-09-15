@@ -1,17 +1,39 @@
 <?php
+namespace Controller;
 
-require_once __DIR__ . '/../Model/AnimalModel.php';
+use Model\AnimalModel;
 
 class AnimalController {
-    private $model;
+    private $animalModel;
 
-    public function __construct() {
-        $this->model = new AnimalModel();
+    public function __construct(AnimalModel $animalModel) {
+        $this->animalModel = $animalModel;
     }
 
-    public function get($id = null) {
+    public function ProcessRequest($method, $id) {
+        switch ($method) {
+            case 'GET':
+                $this->get($id);
+                break;
+            case 'POST':
+                $this->post();
+                break;
+            case 'PUT':
+                $this->put($id);
+                break;
+            case 'DELETE':
+                $this->delete($id);
+                break;
+            default:
+                http_response_code(405);
+                echo json_encode(["status" => false, "message" => "Método não permitido."]);
+                break;
+        }
+    }
+
+    private function get($id = null) {
         if ($id) {
-            $animal = $this->model->getById($id);
+            $animal = $this->animalModel->getById($id);
             if ($animal) {
                 $this->response(true, "Animal encontrado.", $animal, 200);
             } else {
@@ -19,12 +41,12 @@ class AnimalController {
             }
         } else {
             $status = $_GET['status'] ?? null;
-            $animais = $this->model->getAll($status);
+            $animais = $this->animalModel->getAll($status);
             $this->response(true, "Lista de animais recuperada com sucesso.", $animais, 200);
         }
     }
 
-    public function post() {
+    private function post() {
         $data = json_decode(file_get_contents("php://input"), true);
 
         if (empty($data['nome']) || empty($data['especie']) || empty($data['raca']) || !isset($data['idade'])) {
@@ -32,7 +54,7 @@ class AnimalController {
             return;
         }
 
-        $id = $this->model->create($data);
+        $id = $this->animalModel->create($data);
         if ($id) {
             $this->response(true, "Animal cadastrado com sucesso!", ["id" => $id], 201);
         } else {
@@ -40,13 +62,13 @@ class AnimalController {
         }
     }
 
-    public function put($id) {
+    private function put($id) {
         if (!$id) {
             $this->response(false, "ID do animal não fornecido.", null, 400);
             return;
         }
 
-        if (!$this->model->getById($id)) {
+        if (!$this->animalModel->getById($id)) {
             $this->response(false, "Animal não encontrado.", null, 404);
             return;
         }
@@ -58,20 +80,20 @@ class AnimalController {
             return;
         }
 
-        if ($this->model->update($id, $data)) {
+        if ($this->animalModel->update($id, $data)) {
             $this->response(true, "Dados do animal atualizados com sucesso.", null, 200);
         } else {
             $this->response(false, "Erro ao atualizar dados.", null, 500);
         }
     }
 
-    public function delete($id) {
+    private function delete($id) {
         if (!$id) {
             $this->response(false, "ID do animal não fornecido.", null, 400);
             return;
         }
 
-        if ($this->model->delete($id)) {
+        if ($this->animalModel->delete($id)) {
             $this->response(true, "Animal removido do sistema com sucesso.", null, 200);
         } else {
             $this->response(false, "Animal não encontrado para remoção.", null, 404);
@@ -80,7 +102,6 @@ class AnimalController {
 
     private function response($status, $message, $data = null, $code = 200) {
         http_response_code($code);
-        header('Content-Type: application/json; charset=utf-8');
         echo json_encode([
             "status" => $status,
             "message" => $message,
