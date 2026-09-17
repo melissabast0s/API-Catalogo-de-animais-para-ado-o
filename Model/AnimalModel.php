@@ -1,7 +1,7 @@
 <?php
 namespace Model;
 
-use Config\Connection;
+use Model\Connection;
 use PDO;
 use OpenApi\Attributes as OA;
 
