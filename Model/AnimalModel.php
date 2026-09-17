@@ -3,7 +3,45 @@ namespace Model;
 
 use Config\Connection;
 use PDO;
+use OpenApi\Attributes as OA;
 
+#[OA\Schema(
+    schema: "Animais",
+    properties: [
+        new OA\Property(property: "id", type: "integer"),
+        new OA\Property(property: "nome", type: "string"),
+        new OA\Property(property: "especie", type: "string"),
+        new OA\Property(property: "raca", type: "string"),
+        new OA\Property(property: "idade", type: "integer"),
+        new OA\Property(property: "status", type: "string"),
+        new OA\Property(property: "foto", type: "string", nullable: true)
+    ]
+)]
+
+#[OA\Schema(
+    schema: "AnimalInput",
+    required: ["nome", "especie", "raca", "idade"],
+    properties: [
+        new OA\Property(property: "nome", type: "string", example: "Thor"),
+        new OA\Property(property: "especie", type: "string", example: "Cão"),
+        new OA\Property(property: "raca", type: "string", example: "Vira-lata"),
+        new OA\Property(property: "idade", type: "integer", example: 3),
+        new OA\Property(property: "status", type: "string", example: "Disponível"),
+        new OA\Property(property: "foto", type: "string", example: "thor.jpg")
+    ]
+)]
+
+#[OA\Schema(
+    schema: "AnimalUpdateInput",
+    properties: [
+        new OA\Property(property: "nome", type: "string", example: "Thor"),
+        new OA\Property(property: "especie", type: "string", example: "Cão"),
+        new OA\Property(property: "raca", type: "string", example: "Vira-lata"),
+        new OA\Property(property: "idade", type: "integer", example: 4),
+        new OA\Property(property: "status", type: "string", example: "Adotado"),
+        new OA\Property(property: "foto", type: "string", example: "thor_novo.jpg")
+    ]
+)]
 class AnimalModel {
     private $conn;
 

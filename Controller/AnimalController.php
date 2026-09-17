@@ -2,15 +2,21 @@
 namespace Controller;
 
 use Model\AnimalModel;
+use OpenApi\Attributes as OA;
 
+#[OA\Info(
+    title: "API Catálogo de Animais para Adoção",
+    version: "1.0.0",
+    description: "API REST para gerenciamento de animais disponíveis para adoção."
+)]
 class AnimalController {
-    private $animalModel;
+    private AnimalModel $animalModel;
 
     public function __construct(AnimalModel $animalModel) {
         $this->animalModel = $animalModel;
     }
 
-    public function ProcessRequest($method, $id) {
+    public function ProcessRequest(string $method, ?int $id = null): void {
         $action = strtolower($method);
 
         if (method_exists($this, $action)) {
@@ -21,7 +27,51 @@ class AnimalController {
         }
     }
 
-    private function get($id = null) {
+    #[OA\Get(
+        path: "/animais",
+        summary: "Lista todos os animais ou filtra por ID/Status",
+        tags: ["Animais"],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Requisição concluída com sucesso",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Animal não encontrado",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(response: 500, description: "Erro interno do servidor")
+        ]
+    )]
+    #[OA\Get(
+        path: "/animais/{id}",
+        summary: "Obtendo informações de um animal específico",
+        tags: ["Animais"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                schema: new OA\Schema(type: "integer")
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Requisição realizada com sucesso",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Animal não encontrado",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(response: 500, description: "Erro interno do servidor")
+        ]
+    )]
+    private function get(?int $id = null): void {
         if ($id) {
             $animal = $this->animalModel->getById($id);
             if ($animal) {
@@ -30,13 +80,37 @@ class AnimalController {
                 $this->response(false, "Animal não encontrado.", null, 404);
             }
         } else {
+            /** @var string|null $status */
             $status = $_GET['status'] ?? null;
             $animais = $this->animalModel->getAll($status);
             $this->response(true, "Lista de animais recuperada com sucesso.", $animais, 200);
         }
     }
 
-    private function post($id = null) {
+    #[OA\Post(
+        path: "/animais",
+        summary: "Registro de novo animal para adoção",
+        tags: ["Animais"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(ref: "#/components/schemas/AnimalInput")
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: "Animal cadastrado com sucesso",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Campos obrigatórios ausentes",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(response: 500, description: "Erro ao cadastrar animal")
+        ]
+    )]
+    private function post(?int $id = null): void {
+        /** @var array<string, mixed>|null $data */
         $data = json_decode(file_get_contents("php://input"), true);
 
         if (empty($data['nome']) || empty($data['especie']) || empty($data['raca']) || !isset($data['idade'])) {
@@ -44,15 +118,50 @@ class AnimalController {
             return;
         }
 
-        $id = $this->animalModel->create($data);
-        if ($id) {
-            $this->response(true, "Animal cadastrado com sucesso!", ["id" => $id], 201);
+        $newId = $this->animalModel->create($data);
+        if ($newId) {
+            $this->response(true, "Animal cadastrado com sucesso!", ["id" => $newId], 201);
         } else {
             $this->response(false, "Erro ao cadastrar o animal.", null, 500);
         }
     }
 
-    private function put($id = null) {
+    #[OA\Put(
+        path: "/animais/{id}",
+        summary: "Atualizar dados de um animal",
+        tags: ["Animais"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                schema: new OA\Schema(type: "integer")
+            )
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(ref: "#/components/schemas/AnimalUpdateInput")
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Dados do animal atualizados com sucesso",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(
+                response: 400,
+                description: "Dados insuficientes para atualização",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Animal não encontrado",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(response: 500, description: "Erro ao atualizar dados")
+        ]
+    )]
+    private function put(?int $id = null): void {
         if (!$id) {
             $this->response(false, "ID do animal não fornecido.", null, 400);
             return;
@@ -63,6 +172,7 @@ class AnimalController {
             return;
         }
 
+        /** @var array<string, mixed>|null $data */
         $data = json_decode(file_get_contents("php://input"), true);
 
         if (empty($data['nome']) || empty($data['especie']) || empty($data['raca']) || !isset($data['idade']) || empty($data['status'])) {
@@ -77,7 +187,33 @@ class AnimalController {
         }
     }
 
-    private function delete($id = null) {
+    #[OA\Delete(
+        path: "/animais/{id}",
+        summary: "Exclusão de um animal",
+        tags: ["Animais"],
+        parameters: [
+            new OA\Parameter(
+                name: "id",
+                in: "path",
+                required: true,
+                schema: new OA\Schema(type: "integer")
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Animal removido do sistema com sucesso",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(
+                response: 404,
+                description: "Animal não encontrado para remoção",
+                content: new OA\JsonContent(ref: "#/components/schemas/Animais")
+            ),
+            new OA\Response(response: 500, description: "Erro interno do servidor")
+        ]
+    )]
+    private function delete(?int $id = null): void {
         if (!$id) {
             $this->response(false, "ID do animal não fornecido.", null, 400);
             return;
@@ -90,7 +226,7 @@ class AnimalController {
         }
     }
 
-    private function response($status, $message, $data = null, $code = 200) {
+    private function response(bool $status, string $message, mixed $data = null, int $code = 200): void {
         http_response_code($code);
         echo json_encode([
             "status" => $status,
