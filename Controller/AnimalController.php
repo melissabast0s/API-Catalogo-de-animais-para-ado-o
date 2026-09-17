@@ -11,7 +11,6 @@ class AnimalController {
     }
 
     public function ProcessRequest($method, $id) {
-       
         $action = strtolower($method);
 
         if (method_exists($this, $action)) {

@@ -14,7 +14,7 @@ class AnimalModel {
     public function getAll($status = null) {
         if ($status) {
             $stmt = $this->conn->prepare("SELECT * FROM animais WHERE status = :status ORDER BY id DESC");
-            $stmt->bindValue(':status', $status);
+            $stmt->bindValue(':status', $status, PDO::PARAM_STR);
             $stmt->execute();
             return $stmt->fetchAll();
         }
@@ -31,16 +31,21 @@ class AnimalModel {
     }
 
     public function create($data) {
-        $sql = "INSERT INTO animais (nome, especie, raca, idade, status, foto) 
+        $sql = "INSERT INTO animais (nome, especie, raca, idade, status, foto)
                 VALUES (:nome, :especie, :raca, :idade, :status, :foto)";
         
         $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':nome', $data['nome']);
-        $stmt->bindValue(':especie', $data['especie']);
-        $stmt->bindValue(':raca', $data['raca']);
-        $stmt->bindValue(':idade', $data['idade']);
-        $stmt->bindValue(':status', $data['status'] ?? 'Disponível');
-        $stmt->bindValue(':foto', $data['foto'] ?? null);
+        $stmt->bindValue(':nome', $data['nome'], PDO::PARAM_STR);
+        $stmt->bindValue(':especie', $data['especie'], PDO::PARAM_STR);
+        $stmt->bindValue(':raca', $data['raca'], PDO::PARAM_STR);
+        $stmt->bindValue(':idade', (int)$data['idade'], PDO::PARAM_INT);
+        $stmt->bindValue(':status', $data['status'] ?? 'Disponível', PDO::PARAM_STR);
+        
+        if (isset($data['foto']) && $data['foto'] !== null) {
+            $stmt->bindValue(':foto', $data['foto'], PDO::PARAM_STR);
+        } else {
+            $stmt->bindValue(':foto', null, PDO::PARAM_NULL);
+        }
 
         if ($stmt->execute()) {
             return $this->conn->lastInsertId();
@@ -49,18 +54,23 @@ class AnimalModel {
     }
 
     public function update($id, $data) {
-        $sql = "UPDATE animais 
-                SET nome = :nome, especie = :especie, raca = :raca, idade = :idade, status = :status, foto = :foto 
+        $sql = "UPDATE animais
+                SET nome = :nome, especie = :especie, raca = :raca, idade = :idade, status = :status, foto = :foto
                 WHERE id = :id";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        $stmt->bindValue(':nome', $data['nome']);
-        $stmt->bindValue(':especie', $data['especie']);
-        $stmt->bindValue(':raca', $data['raca']);
-        $stmt->bindValue(':idade', $data['idade']);
-        $stmt->bindValue(':status', $data['status']);
-        $stmt->bindValue(':foto', $data['foto'] ?? null);
+        $stmt->bindValue(':nome', $data['nome'], PDO::PARAM_STR);
+        $stmt->bindValue(':especie', $data['especie'], PDO::PARAM_STR);
+        $stmt->bindValue(':raca', $data['raca'], PDO::PARAM_STR);
+        $stmt->bindValue(':idade', (int)$data['idade'], PDO::PARAM_INT);
+        $stmt->bindValue(':status', $data['status'], PDO::PARAM_STR);
+        
+        if (isset($data['foto']) && $data['foto'] !== null) {
+            $stmt->bindValue(':foto', $data['foto'], PDO::PARAM_STR);
+        } else {
+            $stmt->bindValue(':foto', null, PDO::PARAM_NULL);
+        }
 
         return $stmt->execute();
     }
